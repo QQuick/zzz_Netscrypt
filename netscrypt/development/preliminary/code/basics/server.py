@@ -1,23 +1,5 @@
-class Local:
-    def call (self, anObject, name, args, kwargs):
-        try:
-            self.send (True, getattr (anObject, name) (*args, **kwargs))
-        except:
-            self.send (False)
-        
-    def get (self, name):
-        try:
-            self.send (True, getattr (anObject, name))
-        except:
-            self.send (False)
-    
-    def set (self, name, value):
-        try:
-            setattr (anObject, name, value)
-            self.send (True)
-        except:
-            self.send (False)
-    
+import netscrypt
+
 class Dog:
     def __init__ (self, name):
         self.name = name
@@ -27,6 +9,4 @@ class Dog:
         
 dogs = (Dog ('Lassie'), Dog ('Rintintin'))
 
-local = Local ()
-local.register (dogs)
-        
+netscrypt.register (dogs, 'server.dogs')    # Don't automatically name after module, since it may run in multiple places

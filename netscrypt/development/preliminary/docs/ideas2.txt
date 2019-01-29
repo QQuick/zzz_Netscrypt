@@ -26,3 +26,7 @@ Getting a data attribute on such a proxy object will result in a __getattr__ cal
 Calling a method attribute on such a proxy will result in a __getattr__ call that will send an attribute name, followed by a separate, different call to send the data, converted to URL's. On the remote this will result in getattr (object, name) (arguments), with arguments deduced from the URL's that make up the data.
 
 Seems this all may work... Time to construct some Proof of Concept code. First in CPython, then find out what Transcrypt lacks and add it, then in Transcrypt vs. CPython.
+
+
+* Note that most objects will not even be registrated directly. They will just be accessed through other objects.
+
