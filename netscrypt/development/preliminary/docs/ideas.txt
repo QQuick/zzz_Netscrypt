@@ -1,0 +1,24 @@
+Methods can be decorated as @remote
+In that case the remote method with the same name is called with the same args.
+This works from client to server and vice versa.
+Protocol used for now is JSON over WebSockets.
+
+- The signatures of local proxy methods and remote methods normally are exactly the same, including * and ** before formal args.
+- There may be deviations, as long as local proxy and remote method are compatible.
+- Between caller and callee there's a one way dataflow, consisting of a series of positional arguments, followed by a series of keyword arguments.
+- If some parameters aren't resolved by this, they revert to default values on the callee.
+- If there are default arguments on the caller, they are resolved there, and transmitted in the normal way.
+- Objects passed as parameters between local and remote are always proxies.
+
+How to invoke a method on a list proxy:
+- A reference to the list proxy is obtained.
+- A call to e.g. the sort method is forwarded to the original object.
+
+A local cannot directly create objects on a remote. It can only call methods on the remote, that may create objects. Each object on the whole system has a unique URL. It's those URL's that are passed around, never the actual objects. Storing or retrieving data from a remote object happens via functions (or, equivalently, properties). Data can also be retrieved directly, since all attributes on a proxy are proxies.
+
+Each object lives in one well defined place. It is either the original object, or a proxy. Never both.
+
+The first step is to experiment with this with CPython.
+
+
+

@@ -1,0 +1,14 @@
+# ====== File extensions anywhere
+*.nogit
+*.pyc
+*.npp
+*.log
+*.egg-info/
+*.min.html/
+.DS_Store
+
+# ======= Directories anywhere
+__target__/
+__javascript__/
+__pycache__/
+dist/

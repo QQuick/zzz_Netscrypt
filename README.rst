@@ -1,0 +1,1 @@
+Transparent proxies to seamlessly combine a rich browser based GUI with a computation-intensive CPython server program, using nothing but Python syntax on both sides. Work with server objects as though they live in the browser.
