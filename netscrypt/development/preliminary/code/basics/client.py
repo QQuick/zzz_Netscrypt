@@ -1,4 +1,6 @@
 class DogProxy:
+    ''' This proxy is generated automatically from class Dog
+    '''
     def __init__ (self, url):
         self.__remote__ = Remote (url)
         

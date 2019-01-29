@@ -1,0 +1,28 @@
+* It is expensive to have proxies for all remote objects.
+Suppose we want a proxy for a numpy class.
+Such a class may have many methods and overloaded operators.
+Maybe __getattr__ can come to the rescue here.
+
+If an attribute (data or method) doesn't exist, __getattr__ is called, with the name of the attribue as parameter.
+Note the difference with __getattribute__ that's always called.
+This may not be correctly implemented in Transcrypt, but it probably can be.
+Anyhow the difference doesn't matter if the proxy doesn't have (normally named) attributes at all.
+
+If __getattr__ returns a function, than its result will accept parameters, so we're covered both for data and method attributes.
+The function can than just send a message with the right attribute name and arguments. These arguments consist of a list of positional args and a dict of named args, no more flavors to be had.
+
+So rather than having a local proxy object for each remote object, there could be a "polymorphic" proxy, that will support any remote object. If the remote object cannot deal with the attributes required, it will not honor the access or call and return False as result. This will give an exception on the proxy side, as desired.
+
+In other words, the only method to be called on the remote is __getattribute__ (or, equivalently, getattr). Come to think of it, setattr would also be needed. Still a bit fuzzy but it will clear up...
+
+
+
+* From a local point of view, we should be able to write <object>.<attribute> [(arguments)]. And so we can , if the local object 1. exists and 2. has a getattr and a setattr. The fact that it has to exist still makes it necessary to have a proxy instance for each remote object instance. Only all these proxy instances will be of the same class.
+
+Setting an attribute on such a proxy object will result in a __setattr__ call that will send an attribute name and a value to the remote, resulting in a setattr (object, name, value) on the remote.  This value is always an URL. It may pertain to a local object or to a remote one. In the latter case it may be resolved by the receiver if it's local to that.
+
+Getting a data attribute on such a proxy object will result in a __getattr__ call that will send and attribute name to the remote, resulting in a getattr (object, name) on the remote that will return a value. This value is converted to an URL (no matter where it lives) and transmitted back.
+
+Calling a method attribute on such a proxy will result in a __getattr__ call that will send an attribute name, followed by a separate, different call to send the data, converted to URL's. On the remote this will result in getattr (object, name) (arguments), with arguments deduced from the URL's that make up the data.
+
+Seems this all may work... Time to construct some Proof of Concept code. First in CPython, then find out what Transcrypt lacks and add it, then in Transcrypt vs. CPython.
