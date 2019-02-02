@@ -2,9 +2,6 @@ import json
 import asyncio
 import websockets
 
-hostName = 'localhost'
-portNr = 6666
-
 class JsonSocket:
 	def __init__ (self, socket):
 		self.socket = socket
@@ -14,25 +11,111 @@ class JsonSocket:
 		
 	async def recv (self):
 		return json.loads (await socket.recv ())
-		
-class Client:
-    def __init__ (self):
-        asyncio.run (self.clientLoop ())
 
-    async def clientLoop	(self):
-		'''
-		- Called once
-		- Runs forever
-		'''
-        async with websockets.connect (f'ws://{centralHostName}:{centralPortNr}') as socket:
-			jsonSocket = JsonSocket  (socket)
-			while True:
-				await jsonSocket.send (self.command ())
-				self.handleCommand ()
-				self.reply = await jsonSocket.recv ()
- 
+class Client:
+	def __init__ (self, hostName, portNr):
+		self.hostName = hostName
+		self.portNr = portNr
+		self.hostUrl = f'ws://{self.hostName}:{self.portNr}'
+        asyncio.run (self.clientLoopCreator ())
+
+    async def clientLoopCreator (self):
+        ''' Initiates master and slave connections
+        - The master connection is used call server functions from the client
+        - The slave connection is used to call client functions from the server
+        '''
+        
+        async def clientLoop (jsonSocket, role, action):
+            await jsonSocket.send (['register', role])
+            if await jsonSocket.recv ():
+                print (f'Registration of {role} accepted by server at {self.hostUrl}')   
+                while True:
+                    await action ()
+            else:
+                self.print (f'Registration of {role} rejected by server at {self.hostUrl}')
+        
+        async with websockets.connect (self.hostUrl) as masterSocket:
+             .print ('Master connection accepted by server at {self.hostUrl}')
+             async with websockets.connect (self.hostUrl) as slaveSocket:
+                print ('Slave connection accepted by server at {self.hostUrl}')
+                await asyncio.gather (
+                    clientLoop (JsonSocket (slaveSocket), 'slave', self.issueCommandFromRemote),
+                    clientLoop (JsonSocket (smasterSocket, 'master', self.issueCommandFromLocal)
+                )
+				
 class Server:
-	def __init__ (self):
+	def __init__ (self, hostName, portNr):
+		async def serverLoop (socket, dummy):
+			'''
+			Role communication handler
+			- Called once for each master and once for each slave
+			- Handles the socket belonging to the master or slave that it's called for
+			- Remains looping for that master or slave until connection is closed
+			- So several calls of this coroutine run concurrently, one per master and one per slave
+			'''
+			
+			try:
+				self.print (f'Instantiated socket: {socket}')
+				
+				jsonSocket = JsonSocket (socket)
+
+				command, role, clientId = None, None, None					# Init, since the recv may already trigger an exception that needs this info
+				command, role, clientId = await jsonSocket.recv (socket)
+				
+				if command == 'register':
+					await self.send (jsonSocket, True)						# Confirm successful registration
+
+					if role == 'master':
+						self.commandQueues [clientId] = asyncio.Queue ()    # This will also replace an abandoned queue by an empty one
+						await self.created (clientId, self.replyQueues)
+						
+						while True:
+							# Receive command from own master
+							message = await self.recv (socket, role)
+							
+							# Put it in the queue belonging to the right slave
+							try:
+								await self.commandQueues [message [0]] .put ([bankCode] + message [1:])
+								
+								# Get reply of slave from own master queue and send it to master
+								# The master gives a command to only one slave at a time, so he knows who answered
+								await self.send (socket, role, await self.replyQueues [bankCode] .get ())                            
+							except KeyError:
+							   self.reportUnknownBankCode (message [0])
+							   await self.send (socket, role, False)                            
+					else:
+						self.replyQueues [bankCode] = asyncio.Queue ()      # This will also replace an abandoned queue by an empty one
+						await self.created (bankCode, self.commandQueues)
+						
+						while True:                     
+							# Wait until command in own slave queue
+							message = await self.commandQueues [bankCode] .get ()
+							
+							# Send it to own slave
+							await self.send (socket, role, message [1:])
+												   
+							# Get reply from own slave and put it in the right reply queue
+							try:
+								await self.replyQueues [message [0]] .put (await self.recv (socket, role))
+							except:
+								self.reportUnknownBankCode (message [0])
+				else:
+					raise self.RegistrationError ()
+			except self.RegistrationError:
+				try:
+					await socket.send (json.dumps (False), role)            # Try to notify client
+				except:
+					pass                                                    # Escape if client closed connection
+					
+				self.print (f'Error: registration expected, got command: {command}')
+			except websockets.exceptions.ConnectionClosed:
+				self.print (f'Error: connection closed by {bankCode} as {role}')
+			except Exception:
+				self.print (f'Error: in serving {bankCode} as {role}\n{traceback.format_exc ()}')
+	
+	
+	
+	
 		async def serverLoop (socket):
 			'''
 			- Called once for each client
@@ -51,8 +134,15 @@ class Server:
 			except Exception as exception:
 				print (f'Error: {exception}')
 				
+		self.hostName = hostName
+		self.portNr = portNr
+		
+		# Create message queue dicts
+        self.commandQueues = {}        
+        self.replyQueues = {} 
+		
 		# Start server loop creator and keep it running forever, waiting for new clients
-        serverFuture = websockets.server (self.serverLoop, hostName, portNr)
+        serverFuture = websockets.server (self.serverLoop, self.hostName, self.portNr)
         asyncio.get_event_loop () .run_until_complete (serverFuture)
         
         # Prevent termination of event loop, since server loops are subscribed to it
