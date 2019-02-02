@@ -1,22 +1,83 @@
-class Incomplete:
-    pass
+import json
+import asyncio
+import websockets
 
+hostName = 'localhost'
+portNr = 6666
+
+class JsonSocket:
+	def __init__ (self, socket):
+		self.socket = socket
+		
+	async def send (self, anObject):
+		return await socket.send (json.dumps (anObject))
+		
+	async def recv (self):
+		return json.loads (await socket.recv ())
+		
+class Client:
+    def __init__ (self):
+        asyncio.run (self.clientLoop ())
+
+    async def clientLoop	(self):
+		'''
+		- Called once
+		- Runs forever
+		'''
+        async with websockets.connect (f'ws://{centralHostName}:{centralPortNr}') as socket:
+			jsonSocket = JsonSocket  (socket)
+			while True:
+				await jsonSocket.send (self.command ())
+				self.handleCommand ()
+				self.reply = await jsonSocket.recv ()
+ 
+class Server:
+	def __init__ (self):
+		async def serverLoop (socket):
+			'''
+			- Called once for each client
+			- Handles the socket belonging to the client that it's called for
+			- Remains looping for that client until connection is closed
+			- So several calls of this coroutine run concurrently, one per client
+			'''  
+			try:
+				jsonSocket = JsonSocket (socket) 
+				while True:
+					self.command = await jsonSocket.recv ()
+					self.handleCommand ()
+					await jsonSocket.send (self.reply ())                            
+			except websockets.exceptions.ConnectionClosed:
+				print (f'Error: connection closed by client')
+			except Exception as exception:
+				print (f'Error: {exception}')
+				
+		# Start server loop creator and keep it running forever, waiting for new clients
+        serverFuture = websockets.server (self.serverLoop, hostName, portNr)
+        asyncio.get_event_loop () .run_until_complete (serverFuture)
+        
+        # Prevent termination of event loop, since server loops are subscribed to it
+        syncio.get_event_loop () .run_forever ()
+	
 class Proxy:
     ''' A generalized proxy class
     
     Proxies locally represent remote objects.
-    Any attribute access on them is passed on to the remote object.
+    Any attribute (method or data) access on them is passed on to the remote object.
     If the remote object doesn't support the attribute, a local exception is raised.
     
     Remote objects are never locally instantiated directly.
     They just are obtained from the exchange.
     While they seem to have a class identical to the remote one,
-    this local proxy class is a mere dummy for now.
+    this local proxy class is a mere dummy (for now).
     
     It's not yet completely clear where this may make the ship strand.
     Things like 'isinstance' are bound to be influenced by it.
     This bridge will be crossed when experiments or practical demands take us there.
-    '''    
+    '''  
+
+	class Incomplete (Exception):
+		pass
+	
     def __init__ (self, socket, uol):   # uol ('jewel') == universal object locator
         self.__ns_socket__ = socket
         self.__ns_uol__ = uol
@@ -44,9 +105,14 @@ class Proxy:
             return args [1:]
         else:
             raise Incomplete ()
+			
+class Client:
             
-class Delegator:
-    ''' A Delegator deals with requests from a Proxy
+class Server:
+
+
+
+    ''' A server deals with requests from a Proxy
     
     First it locates the object using the uol.
     Then it uses the object to set or get the attribute
