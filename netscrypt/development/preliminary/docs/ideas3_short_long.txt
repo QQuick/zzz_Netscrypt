@@ -1,0 +1,71 @@
+There are two types of remote call: short call and long call.
+In both cases send and recv stricktly alternate, so synchronization is preserved.
+
+
+Short call
+==========
+
+A short call is a call that can be represented by one round trip, so one send-recv pair:
+
+Client			         Server
+
+send --------f-get-------> recv  client requests attribute f
+recv <-------f-par-------- send  server tells client f needs arguments
+send --------f-arg-------> recv  client supplies arguments via bound
+
+				     <----g----
+				     --g-ret-->
+					 
+				     <----h----
+				     --h-ret-->
+					 
+----i---->
+<--i-ret--
+
+recv <-------f-ret-------- send
+
+
+Long call
+=========
+
+A long call is a call that requires multiple round trips, namely a nesting of calls and reverse calls:
+
+Client			         Server
+
+send --------f-get-------> recv  client requests attribute f
+recv <-------f-par-------- send  server tells client f needs argument
+send --------f-arg-------> recv  client supplies arguments via bound
+
+
+recv <-------g-get-------- send  server requests attribute g
+send --------h-get-------> recv  client immediately requests attribute h, so g doesn't need arguments
+recv <-------h-par-------- send  server tells client h needs argumetns
+send --------h-arg-------> recv  client supplies arguments via bound
+					 <----i----
+					 --i-ret-->
+recv <-------h-ret-------- send  server returns result of h
+send --------g-ret-------> recv  client returns result of g
+
+recv <-------j-get-------- send server requests attribute j, which turns out to be a field
+
+----k---->
+send --------l-----------> recv server requesgs attribute l
+recv --------l-ret-------- send client returns result (for a method) c.q. value (for an attribute)
+<--k-ret--
+
+----m---->
+<--m-ret--
+
+send --------j-ret-------> recv client returns value of field j, just as with the result of a function
+
+recv <-------f-ret-------- send server returns the result of f
+
+
+A caller of a remote function cannot know in advance, whether the reply will hold a return value or a nested call.
+But reply type can signal the distinction.
+
+As there is no per-type proxy, it's also not known wether or not a retrieved attribute is a method or a field.
+There's just one general proxy class, able to set and get attributes on the remote.
+If a get returns 
+
+

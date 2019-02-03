@@ -11,12 +11,35 @@ class JsonSocket:
 		
 	async def recv (self):
 		return json.loads (await socket.recv ())
+		
+class Handler:
+	def __init__ (self, socket):
+		self.socket = socket
+		
+class Call (Handler):
+	def __init__ (self, socket):
+		super () .__init__ (socket)
+		
+	def __call__ ():
+		command = self.socket.recv ()
+		self.socket.send ()
 
-class Client:
-	def __init__ (self, hostName, portNr):
+class CallBack (Handler):
+	def __init__ (self, socket):
+		super () .__init__ (socket)
+		
+	def __call__ ():
+		pass
+
+class Party:
+	def __init__ (self, hostName = 'localhost', portNumber = '6666')
 		self.hostName = hostName
-		self.portNr = portNr
-		self.hostUrl = f'ws://{self.hostName}:{self.portNr}'
+		self.portNumber = portNumber
+
+class Client (Party):
+	def __init__ (self, *args, **kwargs):
+		super () .__init__ (*args, **kwargs)
+		self.hostUrl = f'ws://{self.hostName}:{self.portNumber}'
         asyncio.run (self.clientLoopCreator ())
 
     async def clientLoopCreator (self):
@@ -25,9 +48,9 @@ class Client:
         - The slave connection is used to call client functions from the server
         '''
         
-        async def clientLoop (jsonSocket, role, action):
-            await jsonSocket.send (['register', role])
-            if await jsonSocket.recv ():
+        async def clientLoop (socket, role, action):
+            await socket.send (['register', role])
+            if await socket.recv ():
                 print (f'Registration of {role} accepted by server at {self.hostUrl}')   
                 while True:
                     await action ()
@@ -35,16 +58,20 @@ class Client:
                 self.print (f'Registration of {role} rejected by server at {self.hostUrl}')
         
         async with websockets.connect (self.hostUrl) as masterSocket:
-             .print ('Master connection accepted by server at {self.hostUrl}')
+             print ('Master connection accepted by server at {self.hostUrl}')
+			 masterJsonSocket = JsonSocket (masterSocket)
              async with websockets.connect (self.hostUrl) as slaveSocket:
                 print ('Slave connection accepted by server at {self.hostUrl}')
+				slaveJsonSocket = JsonSocket (slaveSocket)
                 await asyncio.gather (
-                    clientLoop (JsonSocket (slaveSocket), 'slave', self.issueCommandFromRemote),
-                    clientLoop (JsonSocket (smasterSocket, 'master', self.issueCommandFromLocal)
+                    clientLoop (masterJsonSocket, 'master', Call (masterJsonSocket))
+                    clientLoop (slaveJsonSocket, 'slave', CallBack (slaveJsonSocket)),
                 )
 				
-class Server:
-	def __init__ (self, hostName, portNr):
+class Server (Party):
+	def __init__ (self, *args, **kwargs):
+		super.__init__ (*args, **kwargs)
+		
 		async def serverLoop (socket, dummy):
 			'''
 			Role communication handler
@@ -133,9 +160,7 @@ class Server:
 				print (f'Error: connection closed by client')
 			except Exception as exception:
 				print (f'Error: {exception}')
-				
-		self.hostName = hostName
-		self.portNr = portNr
+
 		
 		# Create message queue dicts
         self.commandQueues = {}        
